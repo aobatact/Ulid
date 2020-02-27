@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Xunit;
 
@@ -92,6 +93,15 @@ namespace UlidTests
             ulid_smaller.CompareTo(ulid_larger).Should().BeLessThan(0, "a Ulid comparison should compare byte to byte");
             ulid_smaller.CompareTo(ulid_smaller).Should().Be(0, "a Ulid comparison should compare byte to byte");
             guid_smaller.CompareTo(guid_larger).Should().BeLessThan(0, "a Ulid to Guid cast should preserve order");
+        }
+
+        [Fact]
+        public void HashCode()
+        {
+            var ulid = Ulid.NewUlid();
+            ref var i = ref Unsafe.As<Ulid, int>(ref ulid);
+            var naiveHash = i ^ Unsafe.Add(ref i, 1) ^ Unsafe.Add(ref i, 2) ^ Unsafe.Add(ref i, 3);
+            ulid.GetHashCode().Should().Be(naiveHash, "vectorized hash calc should be equivalent to naive calc");
         }
     }
 }

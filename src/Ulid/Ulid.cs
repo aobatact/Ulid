@@ -440,6 +440,17 @@ namespace System // wa-o, System Namespace!?
         public override unsafe int GetHashCode()
         {
             // Simply XOR, same algorithm of Guid.GetHashCode
+#if NETCOREAPP3_0
+            if (false && Sse2.IsSupported)
+            {
+                var vec = Unsafe.As<Ulid, Vector128<int>>(ref this);// a, b, c, d
+                var vec1 = Sse2.ShiftRightLogical128BitLane(vec, 8);//0, 0, a, b
+                var vec2 = Sse2.Xor(vec, vec1);// 0, 0, a^c, b^d
+                var vec3 = Sse2.ShiftRightLogical128BitLane(vec2, 4);// 0, 0, 0, a^c
+                var vec4 = Sse2.Xor(vec2, vec3);//0, 0, ~(a^c), a^b^c^d
+                return vec4.ToScalar();
+            }
+#endif
             ref var i = ref Unsafe.As<Ulid, int>(ref this);
             return i ^ Unsafe.Add(ref i, 1) ^ Unsafe.Add(ref i, 2) ^ Unsafe.Add(ref i, 3);
         }
