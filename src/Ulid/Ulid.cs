@@ -477,13 +477,13 @@ namespace System // wa-o, System Namespace!?
         {
             // Simply XOR, same algorithm of Guid.GetHashCode
 #if NETCOREAPP3_0
-            if (false && Sse2.IsSupported)
+            if (Sse2.IsSupported)
             {
                 var vec = Unsafe.As<Ulid, Vector128<int>>(ref this);// a, b, c, d
                 var vec1 = Sse2.ShiftRightLogical128BitLane(vec, 8);//0, 0, a, b
-                var vec2 = Sse2.Xor(vec, vec1);// 0, 0, a^c, b^d
-                var vec3 = Sse2.ShiftRightLogical128BitLane(vec2, 4);// 0, 0, 0, a^c
-                var vec4 = Sse2.Xor(vec2, vec3);//0, 0, ~(a^c), a^b^c^d
+                var vec2 = Sse2.Xor(vec, vec1);// _, _, a^c, b^d
+                var vec3 = Sse2.ShiftRightLogical128BitLane(vec2, 4);// 0, _, _, a^c
+                var vec4 = Sse2.Xor(vec2, vec3);//_, _, _, a^b^c^d
                 return vec4.ToScalar();
             }
 #endif
