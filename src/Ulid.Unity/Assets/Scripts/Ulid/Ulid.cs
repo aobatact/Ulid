@@ -199,6 +199,20 @@ namespace System // wa-o, System Namespace!?
 #if NETCOREAPP3_0
             if (Avx2.IsSupported)
             {
+                /*
+                Span<int> sp0Lo = stackalloc int[]
+                {
+                    CharToBase32[base32[0]],
+                    CharToBase32[base32[2]],
+                    CharToBase32[base32[3]],
+                    CharToBase32[base32[5]],
+                    CharToBase32[base32[6]],
+                    CharToBase32[base32[8]],
+                    CharToBase32[base32[10]],
+                    CharToBase32[base32[11]],
+                };
+
+                 */
                 //left
                 var vec0Lo = Vector256.Create(CharToBase32[base32[0]], CharToBase32[base32[2]], CharToBase32[base32[3]],
                     CharToBase32[base32[5]], CharToBase32[base32[6]], CharToBase32[base32[8]], CharToBase32[base32[10]],
