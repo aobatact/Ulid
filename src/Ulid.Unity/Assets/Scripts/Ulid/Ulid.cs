@@ -187,9 +187,66 @@ namespace System // wa-o, System Namespace!?
             this = MemoryMarshal.Read<Ulid>(bytes);
         }
 
+#if NETCOREAPP3_0
+
+
+#endif
+
         internal Ulid(ReadOnlySpan<char> base32)
         {
             // unroll-code is based on NUlid.
+
+#if NETCOREAPP3_0
+            if (Avx2.IsSupported)
+            {
+                //left
+                var vec0Lo = Vector256.Create(CharToBase32[base32[0]], CharToBase32[base32[2]], CharToBase32[base32[3]],
+                    CharToBase32[base32[5]], CharToBase32[base32[6]], CharToBase32[base32[8]], CharToBase32[base32[10]],
+                    CharToBase32[base32[11]]);
+                var vec0LoShift = Vector256.Create(5u, 3, 6, 4, 7, 5, 3, 6);
+                vec0Lo = Avx2.ShiftLeftLogicalVariable(vec0Lo, vec0LoShift);
+                var vec0Hi = Vector256.Create(CharToBase32[base32[13]], CharToBase32[base32[14]], CharToBase32[base32[16]],
+                    CharToBase32[base32[18]], CharToBase32[base32[19]], CharToBase32[base32[21]], CharToBase32[base32[22]],
+                    CharToBase32[base32[24]]);
+                var vec0HiShift = Vector256.Create(4u, 7, 5, 3, 6, 4, 7, 5);
+                vec0Hi = Avx2.ShiftLeftLogicalVariable(vec0Hi, vec0HiShift);
+
+                var vec0 = Avx2.PackUnsignedSaturate(vec0Hi, vec0Lo);
+
+                //right
+                var vec1Lo =  Vector256.Create(CharToBase32[base32[1]], CharToBase32[base32[3]], CharToBase32[base32[5]],
+                    CharToBase32[base32[6]], CharToBase32[base32[8]], CharToBase32[base32[9]], CharToBase32[base32[11]],
+                    CharToBase32[base32[13]]);
+                var vec1LoShift =  Vector256.Create(0u, 2, 4, 1, 3, 0, 2, 4);
+                vec1Lo = Avx2.ShiftRightLogicalVariable(vec1Lo, vec1LoShift);
+                var vec1Hi =  Vector256.Create(CharToBase32[base32[14]], CharToBase32[base32[16]], CharToBase32[base32[17]],
+                    CharToBase32[base32[19]], CharToBase32[base32[21]], CharToBase32[base32[22]], CharToBase32[base32[24]],
+                    CharToBase32[base32[25]]);
+                var vec1HiShift =  Vector256.Create(1u, 3, 0, 2, 4, 1, 3, 0);
+                vec1Hi = Avx2.ShiftRightLogicalVariable(vec1Hi, vec1HiShift);
+
+                var vec1 = Avx2.PackUnsignedSaturate(vec1Hi, vec1Lo);
+
+                var vec01_short = Avx2.Or(vec0, vec1).AsInt16();
+                var vec01 = Avx2.ExtractVector128(Avx2.PackUnsignedSaturate(vec01_short, Avx2.ShiftRightLogical(vec01_short, 4)), 0);
+
+
+                //middle
+                var vec2S =  Vector256.Create(CharToBase32[base32[4]], CharToBase32[base32[7]], CharToBase32[base32[12]], CharToBase32[base32[15]], CharToBase32[base32[20]], CharToBase32[base32[23]], 0, 0);
+                var vec2SShift =  Vector256.Create(1u, 2, 1, 2, 1, 2, 0, 0);
+                vec2S = Avx2.ShiftLeftLogicalVariable(vec2S, vec2SShift);
+                var vec2_short = Avx2.ExtractVector128(Avx2.PackUnsignedSaturate(vec2S, Avx2.ShiftRightLogical(vec2S, 4)), 0).AsInt16();
+                var vec2_byte = Sse2.PackUnsignedSaturate(vec2_short, vec2_short);
+                var vec2Mask =  Vector128.Create(
+                    0x80, 0x80, /*timestamp2*/ 0, 0x80, /*timestamp4*/ 1, 0x80,
+                    0x80, /*randomness1*/ 2, 0x80, /*randomness3*/ 3, 0x80, 0x80, /*randomness6*/ 4, 0x80, /*randomness8*/ 5, 0x80);
+                var vec2 = Avx2.Shuffle(vec2_byte, vec2Mask);
+
+                var vec = Sse2.Or(vec2, vec01);
+
+                this = Unsafe.As<Vector128<byte>,Ulid>(ref vec);
+            }
+#endif
 
             randomness9 = (byte)((CharToBase32[base32[24]] << 5) | CharToBase32[base32[25]]); // eliminate bounds-check of span
 
